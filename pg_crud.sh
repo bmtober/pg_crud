@@ -49,9 +49,26 @@ dbuser="$3"
 
 function dbselect {
   # Construct a SQL select statement
-  local fieldlist=$(psql -h "$dbhost" -AtU "$dbuser" "$dbdata" <<< "\d $table" | awk -F"|" '{printf("%s, ",$1)}')
-  fieldlist=${fieldlist%", "}
-  query='select '"$fieldlist"' from '"$table"';'
+  local fieldlist=$(psql -h "$dbhost" -AtU "$dbuser" "$dbdata" <<< "\d $table" | awk -F"|" '{printf("%s ",$1)}')
+  local whereclause=""
+  query=''
+
+  for f in ${fieldlist}
+  do
+    query="${query}${f}, "
+      
+    read -p "where $f=" v
+    if [ ! -z "${v}" ]
+    then
+      whereclause="${whereclause}${f}=${v} and "
+    fi
+  done
+
+  query=${query%", "}
+  whereclause=${whereclause%" and "}
+
+  [ ! -z "$whereclause" ] && whereclause="where $whereclause"
+  query="select "${query}" from $table $whereclause;"
 }
 
 function dbinsert {
@@ -109,7 +126,7 @@ function dbupdate {
 
   whereclause=${whereclause%" and "}
   [ ! -z "$whereclause" ] && whereclause="where $whereclause"
-  query="update table $table set $setlist $whereclause;"
+  query="update $table set $setlist $whereclause;"
 }
 
 function dbdelete {
